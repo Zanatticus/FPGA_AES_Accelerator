@@ -6,19 +6,18 @@ from AES import expand_key
 
 # AES key
 key = 'kwnfy4ncketndjiltjebbgkechtkvhjk'
-expanded = expand_key(key)
-print(len(expanded))
+# expanded = expand_key(key)
+# print(len(expanded))
 # print(len(key))
-# plaintext = "Speed I am speed, faster than fast quicker than quick. LIGHTNING LIGHTNING LIGHTNING"
+plaintext = "Speed I am speed, faster than fast quicker than quick. LIGHTNING LIGHTNING LIGHTNING"
 
-# cyphertext = AES_encrypt(plaintext, key, 256)
+cyphertext = AES_encrypt(plaintext, key, 256)
 
-# steve = AES_decrypt(cyphertext, key, 256)
+steve = AES_decrypt(cyphertext, key, 256)
 
-# print(f"Plaintext: {plaintext}")
-# print(f"Cyphertext: {cyphertext}")
-# print("bingbongbingbong \n\n")
-# print(steve)
+print(f"Plaintext: {plaintext}")
+print(f"Cyphertext: {cyphertext}")
+print(steve)
 
 
 # decrypted_plaintext = AES_decrypt(cyphertext, key, 256)

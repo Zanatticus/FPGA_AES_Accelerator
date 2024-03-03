@@ -24,7 +24,7 @@ Sbox = [
 
 # Takes a string and a key as input and returns its aes encrypted output
 def AES_encrypt(plaintext: str, key: str, type: int) -> str:
-    f_data = format_input(plaintext)
+    f_data = format_input(plaintext, type)
     exp_key = expand_key(key)
     out_data = []
     for x in f_data:
@@ -33,34 +33,53 @@ def AES_encrypt(plaintext: str, key: str, type: int) -> str:
     return ciphertext
 
 # Formats a string into a list of blocks that AES can operate on
-def format_input(data: str) -> list[list[list[int]]]:
+def format_input(data: str, type: int) -> list[list[list[int]]]:
     # Pad the input string if its length is not a multiple of 16
     padded_string = data.ljust((len(data) + 15) // 16 * 16)
 
-    # Split the padded string into chunks of 16 characters
-    chunks = [padded_string[i:i+16] for i in range(0, len(padded_string), 16)]
-
-    # Convert each chunk into a 4x4 matrix of integers
-    matrices = []
-    for chunk in chunks:
-        matrix = []
-        for i in range(0, len(chunk), 4):
-            matrix.append([ord(char) for char in chunk[i:i+4]])
-        matrices.append(matrix)
+    if type == 128:
+        # Split the padded string into chunks of 16 characters
+        chunks = [padded_string[i:i+16] for i in range(0, len(padded_string), 16)]
+        # Convert each chunk into a 4x4 matrix of integers
+        matrices = []
+        for chunk in chunks:
+            matrix = []
+            for i in range(0, len(chunk), 4):
+                matrix.append([ord(char) for char in chunk[i:i+4]])
+            matrices.append(matrix)
+    elif type == 192:
+        # For AES-192, create 4x6 matrices
+        chunks = [padded_string[i:i+24] for i in range(0, len(padded_string), 24)]
+        matrices = []
+        for chunk in chunks:
+            matrix = []
+            for i in range(0, len(chunk), 4):
+                matrix.append([ord(char) for char in chunk[i:i+4]])
+            matrices.append(matrix)
+    elif type == 256:
+        # For AES-256, create 4x8 matrices
+        chunks = [padded_string[i:i+32] for i in range(0, len(padded_string), 32)]
+        matrices = []
+        for chunk in chunks:
+            matrix = []
+            for i in range(0, len(chunk), 4):
+                matrix.append([ord(char) for char in chunk[i:i+4]])
+            matrices.append(matrix)
+    else:
+        raise ValueError("Invalid AES type. Supported types are 128, 192, and 256.")
 
     return matrices
 
 # Formats the output of AES encryption back to a string
 def format_output(matrices: list[list[list[int]]]) -> str:
-    # Convert each matrix into a string of characters
     characters = []
     for matrix in matrices:
         for row in matrix:
             for char_code in row:
                 characters.append(chr(char_code))
 
-    # Join all characters into a single string
     output_string = ''.join(characters)
+    output_string = output_string.rstrip(chr(0))
 
     return output_string
 
@@ -120,17 +139,28 @@ def shift_rows(mat: list[list[int]]) -> list[list[int]]:
     return mat
 
 #  Third step of AES round
-def mix_columns(mat: list[list[int]]) -> list[list[int]]:
-    for i in range(4):
-        s0 = mat[0][i]
-        s1 = mat[1][i]
-        s2 = mat[2][i]
-        s3 = mat[3][i]
+def mix_columns(mat: list[list[int]], type: int) -> list[list[int]]:
+    if(type == 128):
+        for i in range(4):
+            s0 = mat[0][i]
+            s1 = mat[1][i]
+            s2 = mat[2][i]
+            s3 = mat[3][i]
 
-        mat[0][i] = galois_multiply(2, s0) ^ galois_multiply(3, s1) ^ s2 ^ s3
-        mat[1][i] = s0 ^ galois_multiply(2, s1) ^ galois_multiply(3, s2) ^ s3
-        mat[2][i] = s0 ^ s1 ^ galois_multiply(2, s2) ^ galois_multiply(3, s3)
-        mat[3][i] = galois_multiply(3, s0) ^ s1 ^ s2 ^ galois_multiply(2, s3)
+            mat[0][i] = galois_multiply(2, s0) ^ galois_multiply(3, s1) ^ s2 ^ s3
+            mat[1][i] = s0 ^ galois_multiply(2, s1) ^ galois_multiply(3, s2) ^ s3
+            mat[2][i] = s0 ^ s1 ^ galois_multiply(2, s2) ^ galois_multiply(3, s3)
+            mat[3][i] = galois_multiply(3, s0) ^ s1 ^ s2 ^ galois_multiply(2, s3)
+    elif(type == 192):
+            s0 = mat[0][i]
+            s1 = mat[1][i]
+            s2 = mat[2][i]
+            s3 = mat[3][i]
+
+            mat[0][i] = galois_multiply(2, s0) ^ galois_multiply(3, s1) ^ s2 ^ s3
+            mat[1][i] = s0 ^ galois_multiply(2, s1) ^ galois_multiply(3, s2) ^ s3
+            mat[2][i] = s0 ^ s1 ^ galois_multiply(2, s2) ^ galois_multiply(3, s3)
+            mat[3][i] = galois_multiply(3, s0) ^ s1 ^ s2 ^ galois_multiply(2, s3)
     return mat
 
 # Fourth step of AES round
@@ -167,23 +197,26 @@ def expand_key(key: str) -> list[list[list[bytes]]]:
     for x in range(size_index):
         seed.append(sum(key_mat[x]).to_bytes(4, 'big'))
     raw_key = expander(seed, num_rounds, size_index)
-    extended_key = format_key(raw_key)
+    extended_key = format_key(raw_key, (size_index*4))
     return extended_key
 
 # Key expansion helper
-def format_key(expanded_key: list[list[bytearray]]) -> list[list[list[bytes]]]:
+def format_key(expanded_key: list[list[bytearray]], type: int) -> list[list[list[bytes]]]:
     long_bytearray = bytearray()
     for sublist in expanded_key:
         for byte_arr in sublist:
             long_bytearray.extend(byte_arr)
-    group_size = 16
+    
+    group_size = 16 * (type // 32)  # Adjust group size based on AES type
     formatted_groups = [long_bytearray[i:i+group_size] for i in range(0, len(long_bytearray), group_size)]
+    
     extended_key = []
     for group in formatted_groups:
         matrix = []
         for i in range(0, len(group), 4):
             matrix.append(list(group[i:i+4]))
         extended_key.append(matrix)
+    
     return extended_key
 
 # Key expansion helper          
@@ -235,10 +268,9 @@ def galois_multiply(a, b):
 
     return p & 0xff
 
-
 # Takes a string and a key as input and returns its AES decrypted output
 def AES_decrypt(ciphertext: str, key: str, type: int) -> str:
-    f_data = format_input(ciphertext)
+    f_data = format_input(ciphertext, type)
     exp_key = expand_key(key)
     out_data = []
     for x in f_data:
